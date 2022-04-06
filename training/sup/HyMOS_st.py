@@ -26,12 +26,12 @@ def train(P, its, model, criterion, optimizer, scheduler, data_loader, data_iter
         loader_kwargs = {'pin_memory': False, 'num_workers': 1, 'drop_last':True}
         data_loader = DataLoader(data_loader.dataset, sampler=my_sampler, batch_size=data_loader.batch_size, **loader_kwargs)
         data_iter = iter(data_loader)
-        ims, lbls, path = next(data_iter)
-    images1 = ims[0]
-    images2 = ims[1]
+        vds, lbls, path = next(data_iter)
+    videos1 = vds[0]
+    videos2 = vds[1]
     labels = lbls 
-    images1 = images1.to(device)
-    images2 = images2.to(device)
+    videos1 = videos1.to(device)
+    videos2 = videos2.to(device)
     labels = labels.to(device)
 
     try:
@@ -40,7 +40,7 @@ def train(P, its, model, criterion, optimizer, scheduler, data_loader, data_iter
         P.style_iter = iter(P.style_loader)
         style_images, _ = next(P.style_iter)
 
-    images_pair = torch.cat([images1, images2], dim=0)  # 2B
+    images_pair = torch.cat([videos1, videos1], dim=0)  # 2B
 
     images_pair = apply_simclr_aug(P, simclr_aug, images_pair, style_images)  # simclr augmentation
 

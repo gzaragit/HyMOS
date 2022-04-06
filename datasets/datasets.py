@@ -12,7 +12,8 @@ import random
 
 from utils.utils import set_random_seed
 
-DATA_PATH = '~/data/'
+DATA_PATH = "~/data/"
+
 
 class MultiDataTransform(object):
     def __init__(self, transform):
@@ -24,54 +25,66 @@ class MultiDataTransform(object):
         x2 = self.transform2(sample)
         return x1, x2
 
+
 def cycle(iterable):
     while True:
         for x in iterable:
             yield x
         random.shuffle(iterable)
 
+
 def get_train_transform():
 
-    train_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-    ])
+    train_transform = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+        ]
+    )
 
     return MultiDataTransform(train_transform)
 
+
 def get_test_transform_crop():
-    test_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-    ])
+    test_transform = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+        ]
+    )
 
     return test_transform
+
 
 def get_test_transform():
-    test_transform = transforms.Compose([
-        transforms.Resize(224),
-        transforms.ToTensor(),
-    ])
+    test_transform = transforms.Compose(
+        [
+            transforms.Resize(224),
+            transforms.ToTensor(),
+        ]
+    )
     return test_transform
 
+
 def _dataset_info(txt_labels):
-    with open(txt_labels, 'r') as f:
+    with open(txt_labels, "r") as f:
         images_list = f.readlines()
 
     file_names = []
     labels = []
     for row in images_list:
-        row = row.split(' ')
+        row = row.split(" ")
         file_names.append(row[0])
         labels.append(int(row[1]))
 
     return file_names, labels
 
+
 class FileDataset(data.Dataset):
-    def __init__(self, benchmark, data_file, transform=None,add_idx=False):
+    def __init__(self, benchmark, data_file, transform=None, add_idx=False):
         super().__init__()
 
         self.root_dir = DATA_PATH
@@ -85,11 +98,11 @@ class FileDataset(data.Dataset):
         return len(self.names)
 
     def __getitem__(self, index):
-        path, target = self.names[index],self.labels[index]
+        path, target = self.names[index], self.labels[index]
 
-        path = os.path.expanduser(self.root_dir+f"{self.benchmark}/{path}")
-        with open(path, 'rb') as f:
-            img = Image.open(f).convert('RGB')
+        path = os.path.expanduser(self.root_dir + f"{self.benchmark}/{path}")
+        with open(path, "rb") as f:
+            img = Image.open(f).convert("RGB")
 
         img_size = img.size
 
@@ -99,6 +112,7 @@ class FileDataset(data.Dataset):
         if self.add_idx:
             return img, target, index
         return img, target
+
 
 class ClassDataset(data.Dataset):
     def __init__(self, root, names, label, transform):
@@ -115,9 +129,9 @@ class ClassDataset(data.Dataset):
     def __getitem__(self, index):
         path, target = self.names[index], self.label
 
-        path = os.path.expanduser(self.root+f"/{path}")
-        with open(path, 'rb') as f:
-            img = Image.open(f).convert('RGB')
+        path = os.path.expanduser(self.root + f"/{path}")
+        with open(path, "rb") as f:
+            img = Image.open(f).convert("RGB")
 
         img_size = img.size
 
@@ -126,8 +140,9 @@ class ClassDataset(data.Dataset):
 
         return img, target, path
 
+
 def get_pseudo_targets(P, known_mask, known_pseudo_labels, transform, n_classes):
-    file_path = f'data/data_txt/{P.dataset}/{P.test_domain}.txt'
+    file_path = f"data/data_txt/{P.dataset}/{P.test_domain}.txt"
 
     names, _ = _dataset_info(file_path)
     np_names = np.array(names)
@@ -135,10 +150,19 @@ def get_pseudo_targets(P, known_mask, known_pseudo_labels, transform, n_classes)
     selected_names = np_names[known_mask]
     selected_labels = known_pseudo_labels[known_mask]
 
-    return get_class_datasets(P.dataset, data_file=None, transform=transform, names=selected_names.tolist(), labels = selected_labels.tolist(), n_classes=n_classes)
+    return get_class_datasets(
+        P.dataset,
+        data_file=None,
+        transform=transform,
+        names=selected_names.tolist(),
+        labels=selected_labels.tolist(),
+        n_classes=n_classes,
+    )
 
 
-def get_class_datasets(benchmark, data_file, transform=None, names=None, labels=None, n_classes=45):
+def get_class_datasets(
+    benchmark, data_file, transform=None, names=None, labels=None, n_classes=45
+):
     # from a dataset file it builds a set of datasets, one for each class
     if names is None:
         names, labels = _dataset_info(data_file)
@@ -147,7 +171,7 @@ def get_class_datasets(benchmark, data_file, transform=None, names=None, labels=
     names = np.array(names)
     labels_set = set(labels)
     labels = np.array(labels)
-    all_labels = np.arange(labels.max()+1)
+    all_labels = np.arange(labels.max() + 1)
 
     if len(labels_set) != n_classes:
         print("One dataset does not contain all the classes!")
@@ -160,14 +184,15 @@ def get_class_datasets(benchmark, data_file, transform=None, names=None, labels=
         datasets[lbl] = ds
     return datasets
 
+
 def get_datasets_for_test(P):
     test_transform = get_test_transform()
 
     # target
     benchmark = P.dataset
-    file_path = f'data/data_txt/{benchmark}/{P.test_domain}.txt'
+    file_path = f"data/data_txt/{benchmark}/{P.test_domain}.txt"
     target_ds = FileDataset(benchmark, file_path, test_transform, add_idx=True)
-    
+
     # source
     if benchmark == "OfficeHome":
         source_name = f"no_{P.test_domain}OpenSet"
@@ -181,13 +206,16 @@ def get_datasets_for_test(P):
     else:
         raise NotImplementedError(f"Unknown benchmark {benchmark}")
 
-    source_file_path = f'data/data_txt/{benchmark}/{source_name}.txt'
+    source_file_path = f"data/data_txt/{benchmark}/{source_name}.txt"
 
     source_ds = FileDataset(benchmark, source_file_path, test_transform, add_idx=True)
 
     return source_ds, target_ds, n_classes
 
-def get_dataset_2(P, train=True, target_known_mask=None, target_known_pseudo_labels=None):
+
+def get_dataset_2(
+    P, train=True, target_known_mask=None, target_known_pseudo_labels=None
+):
 
     if train:
         transform = get_train_transform()
@@ -201,7 +229,7 @@ def get_dataset_2(P, train=True, target_known_mask=None, target_known_pseudo_lab
             domains.remove(P.test_domain)
             sources = domains
             n_classes = 45
-            
+
         elif benchmark == "DomainNet":
             sources = ["infograph", "painting"]
             n_classes = 100
@@ -215,12 +243,20 @@ def get_dataset_2(P, train=True, target_known_mask=None, target_known_pseudo_lab
         else:
             raise NotImplementedError(f"Unknown benchmark {benchmark}")
         for domain in sources:
-            file_path = f'data/data_txt/{benchmark}/{domain}OpenSet_known.txt'
-            datasets = get_class_datasets(benchmark, file_path, transform, n_classes=n_classes)
+            file_path = f"data/data_txt/{benchmark}/{domain}OpenSet_known.txt"
+            datasets = get_class_datasets(
+                benchmark, file_path, transform, n_classes=n_classes
+            )
             domain_datasets[domain] = datasets
 
-        if target_known_mask is not None: 
-            domain_datasets["pseudo_target"] = get_pseudo_targets(P, target_known_mask, target_known_pseudo_labels, transform, n_classes=n_classes)
+        if target_known_mask is not None:
+            domain_datasets["pseudo_target"] = get_pseudo_targets(
+                P,
+                target_known_mask,
+                target_known_pseudo_labels,
+                transform,
+                n_classes=n_classes,
+            )
             sources.append("pseudo_target")
 
         # now for each class we build a ConcatDataset
@@ -242,9 +278,10 @@ def get_style_dataset(P):
     transform = get_test_transform_crop()
     benchmark = P.dataset
 
-    file_path = f'data/data_txt/{benchmark}/{P.test_domain}.txt'
-    ds = FileDataset(benchmark, file_path,transform)
+    file_path = f"data/data_txt/{benchmark}/{P.test_domain}.txt"
+    ds = FileDataset(benchmark, file_path, transform)
     return ds
+
 
 class DistributedMultiSourceRandomSampler(Sampler):
     r"""Samples elements randomly from a ConcatDataset, cycling between sources.
@@ -271,13 +308,15 @@ class DistributedMultiSourceRandomSampler(Sampler):
         self._num_samples = num_samples
 
         if not isinstance(self.data_source, ConcatDataset):
-            raise ValueError('data_source should be instance of ConcatDataset')
+            raise ValueError("data_source should be instance of ConcatDataset")
 
         self.cumulative_sizes = self.data_source.cumulative_sizes
 
         if not isinstance(self.num_samples, int) or self.num_samples <= 0:
-            raise ValueError("num_samples should be a positive integer "
-                             "value, but got num_samples={}".format(self.num_samples))
+            raise ValueError(
+                "num_samples should be a positive integer "
+                "value, but got num_samples={}".format(self.num_samples)
+            )
 
     @property
     def num_samples(self):
@@ -291,15 +330,20 @@ class DistributedMultiSourceRandomSampler(Sampler):
         low = 0
         for i in range(len(self.cumulative_sizes)):
             high = self.cumulative_sizes[i]
-            data_idx = torch.randint(low=low, high=high, size=(self.num_samples,), dtype=torch.int64).tolist()
+            data_idx = torch.randint(
+                low=low, high=high, size=(self.num_samples,), dtype=torch.int64
+            ).tolist()
             indexes.append(data_idx)
             low = high
         interleave_indexes = [x for t in zip(*indexes) for x in t]
-        interleave_indexes = interleave_indexes[self.rank:self.cumulative_sizes[-1]:self.num_replicas] # distributed
+        interleave_indexes = interleave_indexes[
+            self.rank : self.cumulative_sizes[-1] : self.num_replicas
+        ]  # distributed
         return iter(interleave_indexes)
 
     def __len__(self):
         return self.num_samples
+
 
 class BalancedMultiSourceRandomSampler(Sampler):
     r"""Samples elements randomly from a ConcatDataset, cycling between sources.
@@ -318,11 +362,13 @@ class BalancedMultiSourceRandomSampler(Sampler):
         self.batch_p = batch_p
 
         if not isinstance(data_source, ConcatDataset):
-            raise ValueError('data_source should be instance of ConcatDataset')
+            raise ValueError("data_source should be instance of ConcatDataset")
 
         for el in data_source.datasets:
             if not isinstance(el, ConcatDataset):
-                raise ValueError("data_source should be a concatdataset of concat datasets")
+                raise ValueError(
+                    "data_source should be a concatdataset of concat datasets"
+                )
 
         n_classes = len(data_source.datasets)
         sources_per_class = {}
@@ -338,7 +384,12 @@ class BalancedMultiSourceRandomSampler(Sampler):
 
             # size of each source for this class
             sizes = [cls_ds.cumulative_sizes[0]]
-            sizes.extend([(cls_ds.cumulative_sizes[el] - cls_ds.cumulative_sizes[el-1]) for el in range(1,n_sources)])
+            sizes.extend(
+                [
+                    (cls_ds.cumulative_sizes[el] - cls_ds.cumulative_sizes[el - 1])
+                    for el in range(1, n_sources)
+                ]
+            )
             lengths_dict[cls_id] = sizes
 
             # elements of each source for this class -> taken in random order!
@@ -347,7 +398,7 @@ class BalancedMultiSourceRandomSampler(Sampler):
             src_dict = {}
             for src in range(n_sources):
                 high = cls_ds.cumulative_sizes[src]
-                ids_src = [el for el in range(low+low_this, high+low)]
+                ids_src = [el for el in range(low + low_this, high + low)]
 
                 # random order
                 random.shuffle(ids_src)
@@ -357,16 +408,20 @@ class BalancedMultiSourceRandomSampler(Sampler):
             ids_dict[cls_id] = src_dict
             low += high
 
-        list_strs, list_indices = BalancedMultiSourceRandomSampler.generate_list(n_classes, sources_per_class, batch_p, lengths_dict, ids_dict)
+        list_strs, list_indices = BalancedMultiSourceRandomSampler.generate_list(
+            n_classes, sources_per_class, batch_p, lengths_dict, ids_dict
+        )
 
         # now we split indices among processes
-        num_chunks = int(len(list_indices)/self.batch_p)
+        num_chunks = int(len(list_indices) / self.batch_p)
 
-        while not num_chunks%self.world_size == 0:
-            print("Removing some data as dataset size is not divisible per number of processes")
+        while not num_chunks % self.world_size == 0:
+            print(
+                "Removing some data as dataset size is not divisible per number of processes"
+            )
             for _ in range(batch_p):
                 list_indices.pop()
-            num_chunks = int(len(list_indices)/self.batch_p)
+            num_chunks = int(len(list_indices) / self.batch_p)
 
         indices_tensor = torch.tensor(list_indices)
         chunks = torch.chunk(indices_tensor, num_chunks)
@@ -374,7 +429,7 @@ class BalancedMultiSourceRandomSampler(Sampler):
         starts_from = self.rank
         my_chunks = []
         for idx, ch in enumerate(chunks):
-            if (idx - starts_from)%self.world_size == 0:
+            if (idx - starts_from) % self.world_size == 0:
                 my_chunks.append(ch)
         my_indices = torch.cat(my_chunks).tolist()
         self.indices = my_indices
@@ -385,16 +440,16 @@ class BalancedMultiSourceRandomSampler(Sampler):
         n_classes -> total number of classes
         sources_per_class -> dict with {class_id : number of sources containing this class}
         batch_p -> number of samples for each class in a block
-        lengths_dict -> number of samples in each class for each source. Ex class 0 has K=sources_per_class[0] sources. lengths[0] = [len_class_0_source_1, ..., len_class_0_source_K] 
-        ids_dict -> each sample has a unique identifier. This identifiers are those that should be inserted in the final list. This is a dict that contains for 
+        lengths_dict -> number of samples in each class for each source. Ex class 0 has K=sources_per_class[0] sources. lengths[0] = [len_class_0_source_1, ..., len_class_0_source_K]
+        ids_dict -> each sample has a unique identifier. This identifiers are those that should be inserted in the final list. This is a dict that contains for
         each class and each souce a list of ids
-        Should return a list which can be divided in blocks of size batch_p. Each block contains batch_p 
-        elements of the same class. Subsequent blocks refer to different classes. 
+        Should return a list which can be divided in blocks of size batch_p. Each block contains batch_p
+        elements of the same class. Subsequent blocks refer to different classes.
         The sampling should always be done with replacement in order to maintain balancing. In particular
          - if for a certain class one source has less samples than the others those samples should be selected
          more often in order to rebalance the various sources;
-         - if a certain class has in total a lower number of samples w.r.t. the others it should still appear in the 
-         same number of blocks. 
+         - if a certain class has in total a lower number of samples w.r.t. the others it should still appear in the
+         same number of blocks.
          Therefore the correct approach is:
           - we compute the number of samples that we need for each class (max of each class number of sources*max_source_length)
           - for each class we randomly sample from the various sources (in an alternating fashion) until we reach the desired length
@@ -431,7 +486,7 @@ class BalancedMultiSourceRandomSampler(Sampler):
         D4C5E1, D0C5E2, D1C5E2,
         ...
         ]
-        First of all we compute the desired length for each class queue. 
+        First of all we compute the desired length for each class queue.
         So for each class we compute num_sources*len_largest_source and we get the max of those values
         Then we create a queue for each class with the desired length and alternating samples from the various
         sources.
@@ -445,12 +500,15 @@ class BalancedMultiSourceRandomSampler(Sampler):
         Then for each class we create a queue that contains elements of that class alternating sources
         queue_C0 = [D0E0, D1E0, D2E0, D3E0, D4E0, D0E1, D1E1, D2E1, D3E1, D4E1, D0E2, D1E2, ...
         At this point we have a queue for each class. However it is possible that some queues are longer than others.
-        Through resampling we should fix this so that we can keep the balancing between classes. 
+        Through resampling we should fix this so that we can keep the balancing between classes.
         When resampling we should keep the alternating strategy for sources.
         """
 
-        # compute desired length 
-        cls_sizes = [max(lengths_dict[cls_id])*sources_per_class[cls_id] for cls_id in range(n_classes)]
+        # compute desired length
+        cls_sizes = [
+            max(lengths_dict[cls_id]) * sources_per_class[cls_id]
+            for cls_id in range(n_classes)
+        ]
 
         max_size = max(cls_sizes)
 
@@ -478,7 +536,9 @@ class BalancedMultiSourceRandomSampler(Sampler):
                 ids_this_src = ids_this_class[src]
                 len_this_src = len_sources[src]
                 queue_this_class.append(f"D{src}E{random.randrange(len_this_src)}")
-                queue_this_class_ids.append(ids_this_src[random.randrange(len_this_src)])
+                queue_this_class_ids.append(
+                    ids_this_src[random.randrange(len_this_src)]
+                )
 
             queues[cls_id] = queue_this_class
             queues_ids[cls_id] = queue_this_class_ids
@@ -494,7 +554,7 @@ class BalancedMultiSourceRandomSampler(Sampler):
                 if len(q_this_class) >= batch_p:
                     found = True
                     for el in range(batch_p):
-                        out.append(f'C{cls_id}{q_this_class.pop(0)}')
+                        out.append(f"C{cls_id}{q_this_class.pop(0)}")
                         out_ids.append(q_this_class_ids.pop(0))
             if not found:
                 break
